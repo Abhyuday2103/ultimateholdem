@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ultimate Hold'em</title>
+<meta name="description" content="Play Ultimate Texas Hold'em live with friends. Up to 5 seats, computer players, Trips and Pairs Bonus side bets.">
+<meta name="theme-color" content="#0b1d42">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♠</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --felt:#13336f; --felt-deep:#0a1b3f; --felt-line:#2a4f96;
+  --gold:#f3cf4e; --gold-deep:#c9a22a; --red:#d8423a; --cream:#f5f0e4;
+  --muted:#9fb3d9; --win:#5fd38a; --lose:#ff7a70; --panel:rgba(5,14,36,.55);
+  --card:#fffdf8; --card-red:#c62f2f; --card-black:#151820;
+}
+*{box-sizing:border-box}
+html{background:var(--felt-deep)}
+html,body{margin:0}
+body{min-height:100vh;
+  font-family:Inter,system-ui,sans-serif;color:var(--cream);
+  background:radial-gradient(ellipse at 50% 18%,#1d4a99 0%,var(--felt) 38%,var(--felt-deep) 100%) no-repeat;
+  -webkit-tap-highlight-color:transparent;
+}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:disabled{opacity:.4;cursor:not-allowed}
+input{font:inherit}
+.display{font-family:'Bebas Neue',Impact,sans-serif;letter-spacing:.04em;font-weight:400}
+.hidden{display:none!important}
+
+/* ---------- welcome ---------- */
+#welcome{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
+.wbox{width:100%;max-width:440px;text-align:center}
+.wbox h1{font-size:clamp(46px,12vw,72px);line-height:.9;margin:0 0 4px;color:var(--cream)}
+.wbox h1 span{color:var(--gold)}
+.tag{color:var(--muted);margin:0 0 28px;font-size:14px}
+.wcard{background:var(--panel);border:1px solid var(--felt-line);border-radius:18px;padding:20px;text-align:left;margin-bottom:14px}
+.wcard h2{margin:0 0 12px;font-size:24px;color:var(--gold)}
+label.fl{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 6px}
+.inp{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--felt-line);background:#081634;color:var(--cream);font-size:16px;outline:none}
+.inp:focus{border-color:var(--gold)}
+.row{display:flex;gap:10px;align-items:center}
+.btn{padding:12px 18px;border-radius:999px;font-weight:700;font-size:15px;background:#20407f;border:1px solid #3a63ad;transition:transform .08s,background .15s}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn.gold{background:linear-gradient(#ffdb63,var(--gold-deep));color:#1a1300;border-color:#ffe48a}
+.btn.red{background:linear-gradient(#ee5a4f,#b8322b);border-color:#ff8a80}
+.btn.ghost{background:transparent}
+.btn.sm{padding:8px 13px;font-size:13px}
+.btn.wide{width:100%}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.seg button{padding:8px 12px;border-radius:999px;border:1px solid var(--felt-line);font-size:13px;font-weight:600}
+.seg button.on{background:var(--gold);color:#1a1300;border-color:var(--gold)}
+.err{color:var(--lose);font-size:14px;min-height:20px;margin-top:8px}
+.invite{background:rgba(243,207,78,.12);border:1px solid var(--gold-deep);color:var(--gold);padding:10px 14px;border-radius:12px;margin-bottom:14px;font-weight:600}
+
+/* ---------- game layout ---------- */
+#game{max-width:1200px;margin:0 auto;padding:12px 16px 24px;display:grid;grid-template-columns:1fr 300px;gap:16px}
+@media (max-width:900px){#game{grid-template-columns:1fr}}
+.top{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.top .brand{font-size:30px;color:var(--cream);margin-right:auto;line-height:1}
+.top .brand span{color:var(--gold)}
+.code{background:var(--panel);border:1px solid var(--felt-line);border-radius:999px;padding:6px 6px 6px 14px;display:flex;align-items:center;gap:10px;font-size:13px}
+.code b{font-family:'Bebas Neue';font-size:22px;letter-spacing:.12em;color:var(--gold);line-height:1}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--win);display:inline-block}
+.dot.off{background:var(--lose)}
+
+.felt{position:relative;border-radius:28px;padding:18px 16px 16px;background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.07),transparent 60%),rgba(0,0,0,.12);border:2px solid var(--felt-line);box-shadow:inset 0 0 60px rgba(0,0,0,.35)}
+.arc{text-align:center;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);opacity:.8;margin-bottom:10px}
+.dealer{display:flex;flex-direction:column;align-items:center;gap:8px}
+.lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.handname{font-weight:700;font-size:14px;min-height:18px;text-align:center}
+.handname .q{font-weight:600;font-size:12px;margin-left:6px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.1)}
+.cards{display:flex;gap:6px;justify-content:center;min-height:74px}
+.board{margin:14px 0 6px}
+.phase{text-align:center;font-size:13px;color:var(--muted);min-height:18px}
+
+.card{width:52px;height:74px;border-radius:7px;background:var(--card);color:var(--card-black);position:relative;box-shadow:0 2px 6px rgba(0,0,0,.4);flex:none;font-weight:800}
+.card .r{position:absolute;top:4px;left:6px;font-size:19px;line-height:1}
+.card .s{position:absolute;bottom:4px;right:6px;font-size:26px;line-height:1}
+.card .s2{position:absolute;top:24px;left:6px;font-size:14px;line-height:1}
+.card.red{color:var(--card-red)}
+.card.back{background:repeating-linear-gradient(45deg,#b8322b 0 6px,#a12a24 6px 12px);border:3px solid #fff}
+.card.slot{background:transparent;border:2px dashed rgba(255,255,255,.18);box-shadow:none}
+.card.dim{opacity:.38}
+.card.hi{box-shadow:0 0 0 3px var(--gold),0 2px 8px rgba(0,0,0,.4)}
+.card.sm{width:40px;height:57px;border-radius:6px}
+.card.sm .r{font-size:15px;top:3px;left:4px}.card.sm .s{font-size:19px;bottom:3px;right:4px}.card.sm .s2{font-size:11px;top:19px;left:4px}
+.deal{animation:deal .35s ease-out both}
+@keyframes deal{from{transform:translateY(-14px) rotateY(80deg);opacity:0}to{transform:none;opacity:1}}
+
+.seats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:16px}
+@media (max-width:900px){.seats{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.seat.empty.guest{display:none}.seat{min-height:0}}
+.seat{background:var(--panel);border:1px solid var(--felt-line);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:7px;min-height:170px;position:relative}
+.seat.me{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.seat.empty{align-items:center;justify-content:center;color:var(--muted);border-style:dashed;font-size:13px;gap:10px}
+.seat .nm{font-weight:700;font-size:14px;display:flex;gap:6px;align-items:center;white-space:nowrap;overflow:hidden}
+.seat .nm .t{font-size:9px;font-weight:800;letter-spacing:.08em;padding:2px 5px;border-radius:4px;background:rgba(255,255,255,.12);color:var(--muted)}
+.seat .nm .t.h{background:var(--gold);color:#1a1300}
+.seat .bk{font-size:12px;color:var(--muted)}
+.seat .bk b{color:var(--cream)}
+.seat .cards{min-height:57px;justify-content:flex-start}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:999px;background:rgba(255,255,255,.1);white-space:nowrap}
+.chip.play{background:rgba(243,207,78,.22);color:var(--gold)}
+.status{font-size:12.5px;font-weight:700;margin-top:auto}
+.status.win{color:var(--win)}.status.lose{color:var(--lose)}.status.wait{color:var(--muted);font-weight:500}
+.x{position:absolute;top:6px;right:8px;font-size:15px;color:var(--muted);padding:2px 4px}
+
+/* ---------- controls ---------- */
+.ctl{margin-top:14px;background:var(--panel);border:1px solid var(--felt-line);border-radius:18px;padding:14px}
+.ctl h3{margin:0 0 4px;font-size:22px;color:var(--gold)}
+.sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+.spots{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.spot{flex:1 1 120px;border-radius:14px;border:2px solid var(--felt-line);padding:10px;text-align:center;position:relative;background:rgba(0,0,0,.15)}
+.spot.sel{border-color:var(--gold);background:rgba(243,207,78,.08)}
+.spot .k{font-family:'Bebas Neue';font-size:20px;letter-spacing:.06em}
+.spot.trips .k{color:var(--gold)} .spot.ante .k{color:#ff8a80} .spot.pairs .k{color:#9ad1ff}
+.spot .v{font-size:22px;font-weight:800}
+.spot .h{font-size:11px;color:var(--muted)}
+.spot .clr{position:absolute;top:4px;right:8px;color:var(--muted);font-size:14px}
+.chiprow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.pchip{width:48px;height:48px;border-radius:50%;font-weight:800;font-size:14px;border:4px dashed rgba(255,255,255,.75);box-shadow:0 2px 0 rgba(0,0,0,.4)}
+.pchip.c5{background:#c8332c}.pchip.c10{background:#2c62c8}.pchip.c25{background:#1f8a4c}.pchip.c100{background:#1d1d1d}
+.acts{display:flex;gap:10px;flex-wrap:wrap}
+.acts .btn{flex:1 1 120px;padding:15px 12px;font-size:16px}
+.mine{font-size:14px;margin-bottom:10px}
+.mine b{color:var(--gold)}
+.res{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0 10px}
+.res td{padding:5px 4px;border-bottom:1px solid rgba(255,255,255,.08)}
+.res td:last-child{text-align:right;font-weight:700}
+.big{font-size:20px;font-weight:800}
+.pos{color:var(--win)}.neg{color:var(--lose)}
+.hostbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);align-items:center}
+.hostbar .lbl{margin-right:4px}
+
+/* ---------- side ---------- */
+.side{display:flex;flex-direction:column;gap:12px}
+details.pay{background:var(--panel);border:1px solid var(--felt-line);border-radius:16px;padding:12px 14px}
+details.pay summary{cursor:pointer;font-family:'Bebas Neue';font-size:20px;letter-spacing:.06em;color:var(--gold);list-style:none}
+details.pay summary::-webkit-details-marker{display:none}
+.pt{width:100%;font-size:12.5px;border-collapse:collapse;margin:6px 0 10px}
+.pt td{padding:3px 0}.pt td:last-child{text-align:right;color:var(--gold);font-weight:700}
+.pt caption{text-align:left;font-weight:800;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#ff8a80;padding:4px 0}
+.rules{font-size:12.5px;color:var(--muted);line-height:1.5;margin:0;padding-left:18px}
+.feed{background:var(--panel);border:1px solid var(--felt-line);border-radius:16px;display:flex;flex-direction:column;height:360px}
+@media (max-width:900px){.feed{height:300px}}
+.feed .msgs{flex:1;overflow-y:auto;padding:12px 14px;font-size:13px;display:flex;flex-direction:column;gap:5px}
+.feed .m{line-height:1.35}
+.feed .m.sys{color:var(--muted);font-size:12px}
+.feed .m b{color:var(--gold)}
+.feed form{display:flex;gap:6px;padding:8px;border-top:1px solid rgba(255,255,255,.08)}
+.feed form .inp{padding:9px 12px;font-size:14px}
+
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#08142f;border:1px solid var(--gold-deep);padding:10px 16px;border-radius:12px;font-size:14px;z-index:9;box-shadow:0 8px 30px rgba(0,0,0,.5);max-width:90vw;text-align:center}
+.banner{grid-column:1/-1;background:rgba(216,66,58,.18);border:1px solid var(--red);border-radius:12px;padding:10px 14px;font-size:14px}
+</style>
+</head>
+<body>
+
+<section id="welcome">
+  <div class="wbox">
+    <h1 class="display">Ultimate <span>Hold'em</span></h1>
+    <p class="tag">Texas Hold'em against the dealer. Play live with friends, up to 5 seats.</p>
+    <div id="inviteNote" class="invite hidden"></div>
+    <div class="wcard">
+      <label class="fl" for="nameIn">Your name</label>
+      <input id="nameIn" class="inp" maxlength="16" placeholder="e.g. Abhy" autocomplete="nickname">
+    </div>
+    <div class="wcard" id="joinCard">
+      <h2 class="display">Join a table</h2>
+      <label class="fl" for="codeIn">Table code</label>
+      <div class="row">
+        <input id="codeIn" class="inp" maxlength="6" placeholder="ABCDE" style="text-transform:uppercase;letter-spacing:.2em;font-weight:700">
+        <button id="joinBtn" class="btn gold">Join</button>
+      </div>
+    </div>
+    <div class="wcard" id="hostCard">
+      <h2 class="display">Host a table</h2>
+      <label class="fl">Starting chips per player</label>
+      <div class="seg" id="bankSeg">
+        <button data-v="500">$500</button><button data-v="1000" class="on">$1,000</button><button data-v="2500">$2,500</button><button data-v="5000">$5,000</button>
+      </div>
+      <button id="hostBtn" class="btn gold wide">Open a table</button>
+    </div>
+    <div class="err" id="wErr"></div>
+  </div>
+</section>
+
+<main id="game" class="hidden">
+  <div class="top">
+    <div class="brand display">Ultimate <span>Hold'em</span></div>
+    <div class="code"><span class="dot" id="netDot"></span><span>Table</span><b id="codeOut">-----</b>
+      <button class="btn sm gold" id="inviteBtn">Invite</button></div>
+  </div>
+  <div id="banner" class="banner hidden"></div>
+
+  <div>
+    <div class="felt">
+      <div class="arc">Dealer must have a pair or better to open</div>
+      <div class="dealer">
+        <div class="lbl">Dealer</div>
+        <div class="cards" id="dealerCards"></div>
+        <div class="handname" id="dealerName"></div>
+      </div>
+      <div class="cards board" id="boardCards"></div>
+      <div class="phase" id="phaseTxt"></div>
+      <div class="seats" id="seats"></div>
+    </div>
+    <div class="ctl" id="ctl"></div>
+  </div>
+
+  <aside class="side">
+    <details class="pay" open>
+      <summary>Pay tables</summary>
+      <table class="pt"><caption>Blind</caption>
+        <tr><td>Royal Flush</td><td>500 to 1</td></tr><tr><td>Straight Flush</td><td>50 to 1</td></tr>
+        <tr><td>Four of a Kind</td><td>10 to 1</td></tr><tr><td>Full House</td><td>3 to 1</td></tr>
+        <tr><td>Flush</td><td>3 to 2</td></tr><tr><td>Straight</td><td>1 to 1</td></tr>
+        <tr><td>Other hands</td><td>Push</td></tr></table>
+      <table class="pt"><caption>Trips</caption>
+        <tr><td>Royal Flush</td><td>50 to 1</td></tr><tr><td>Straight Flush</td><td>40 to 1</td></tr>
+        <tr><td>Four of a Kind</td><td>30 to 1</td></tr><tr><td>Full House</td><td>8 to 1</td></tr>
+        <tr><td>Flush</td><td>7 to 1</td></tr><tr><td>Straight</td><td>4 to 1</td></tr>
+        <tr><td>Three of a Kind</td><td>3 to 1</td></tr></table>
+      <table class="pt"><caption>Pairs Bonus (your 2 cards)</caption>
+        <tr><td>A-A</td><td>30 to 1</td></tr><tr><td>A-K suited</td><td>25 to 1</td></tr>
+        <tr><td>A-Q or A-J suited</td><td>20 to 1</td></tr><tr><td>A-K offsuit</td><td>15 to 1</td></tr>
+        <tr><td>K-K, Q-Q, J-J</td><td>10 to 1</td></tr><tr><td>A-Q or A-J offsuit</td><td>5 to 1</td></tr>
+        <tr><td>10-10 thru 2-2</td><td>3 to 1</td></tr></table>
+      <ul class="rules">
+        <li>Ante and Blind are equal. Ante $10 to $500. Trips and Pairs Bonus $5 to $100, both optional.</li>
+        <li>Before the flop: check or bet 3x or 4x ante. After the flop: check or bet 2x. On the river: bet 1x or fold.</li>
+        <li>Beat the dealer: Play pays 1 to 1, Ante pays 1 to 1 (pushes if dealer does not open), Blind pays per table.</li>
+        <li>Trips pays on your final hand even if you fold or lose. Fresh single 52-card deck every hand.</li>
+      </ul>
+    </details>
+    <div class="feed">
+      <div class="msgs" id="msgs"></div>
+      <form id="chatForm"><input id="chatIn" class="inp" maxlength="200" placeholder="Say something" autocomplete="off"><button class="btn sm gold">Send</button></form>
+    </div>
+  </aside>
+</main>
+
+<div id="toast" class="hidden"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

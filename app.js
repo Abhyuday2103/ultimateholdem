@@ -28,7 +28,7 @@
   };
 
   // ---------- toast ----------
-  if (window.innerWidth < 900) document.querySelector('details.pay').removeAttribute('open');
+  if (window.innerWidth < 900 && window.innerWidth > 700) document.querySelector('details.pay').removeAttribute('open');
   let toastT;
   function toast(msg) {
     const t = $('#toast');
@@ -80,6 +80,7 @@
   }
   function showGame() {
     $('#welcome').classList.add('hidden');
+    document.body.classList.add('ingame');
     $('#game').classList.remove('hidden');
     $('#codeOut').textContent = app.code || 'SOLO';
   }
@@ -216,6 +217,40 @@
     if (app.role === 'host' && app.table && app.conns.size) { e.preventDefault(); e.returnValue = ''; }
   });
 
+  // ---------- phone sheets (pay tables / chat) ----------
+  const phone = () => window.matchMedia('(max-width:700px)').matches;
+  app.chatSeen = 0;
+  function openSheet(which) {
+    const s = $('.side');
+    s.classList.remove('show-pays', 'show-chat');
+    s.classList.add('open', 'show-' + which);
+    $('#backdrop').classList.remove('hidden');
+    $('#sheetTitle').textContent = which === 'chat' ? 'Table chat' : 'Pay tables';
+    if (which === 'chat') {
+      app.chatSeen = app.view ? app.view.chat.length : 0;
+      updateBadge();
+      const m = $('#msgs'); m.scrollTop = m.scrollHeight;
+    }
+  }
+  function closeSheet() {
+    $('.side').classList.remove('open', 'show-pays', 'show-chat');
+    $('#backdrop').classList.add('hidden');
+    document.activeElement && document.activeElement.blur && document.activeElement.blur();
+  }
+  function updateBadge() {
+    const v = app.view; if (!v) return;
+    const s = $('.side');
+    if (s.classList.contains('show-chat')) app.chatSeen = v.chat.length;
+    const n = Math.max(0, v.chat.length - app.chatSeen);
+    const b = $('#chatBadge');
+    b.textContent = n > 9 ? '9+' : n;
+    b.classList.toggle('hidden', !n);
+  }
+  $('#paysBtn').onclick = () => openSheet('pays');
+  $('#chatBtn').onclick = () => openSheet('chat');
+  $('#sheetClose').onclick = closeSheet;
+  $('#backdrop').onclick = closeSheet;
+
   // ---------- rendering ----------
   const SUIT = { s: '♠', h: '♥', d: '♦', c: '♣' };
   function cardHTML(c, key, opts = {}) {
@@ -244,6 +279,7 @@
     const v = app.view;
     if (!v) return;
     if (v.handNo !== app.lastHand) { app.seen.clear(); app.lastHand = v.handNo; }
+    if (v.phase !== app.lastPhase) { app.lastPhase = v.phase; const f = $('.felt'); if (f) f.scrollTop = 0; }
     const me = v.me >= 0 ? v.seats[v.me] : null;
     const res = v.phase === 'results';
     const winSet = new Set(res && v.dealerHand ? v.dealerHand.cards : []);
@@ -253,7 +289,7 @@
       .map((c, i) => cardHTML(c, v.handNo + 'd' + i, { hi: res && winSet.has(c) })).join('');
     $('#dealerName').innerHTML = v.dealerHand
       ? esc(v.dealerHand.name) + '<span class="q" style="color:' + (v.dealerHand.qual ? 'var(--gold)' : 'var(--muted)') + '">' + (v.dealerHand.qual ? 'Opens' : 'Does not open') + '</span>'
-      : '';
+      : '<span class="lbl">Dealer</span>';
     // board
     const myBest = me && me.hole.length && me.hole[0] !== '??' && v.board.length >= 3 ? UTH.best(me.hole.concat(v.board)) : null;
     const mySet = new Set(myBest && !res ? myBest.cards : []);
@@ -283,7 +319,7 @@
       if (res && s.result) {
         const n = s.result.net;
         cls = n > 0 ? 'win' : n < 0 ? 'lose' : 'wait';
-        status = (s.folded ? 'Folded' : esc(s.result.hand)) + '<br>' + signed(n);
+        status = signed(n) + ' · ' + (s.folded ? 'Folded' : esc(s.result.hand));
       } else if (s.inHand && ['preflop', 'flop', 'river'].includes(v.phase)) {
         status = s.acted ? esc(s.action === 'Check' ? 'Checked' : s.action === 'Fold' ? 'Folded' : 'Bet ' + s.action) : 'Thinking...';
         if (s.acted) cls = '';
@@ -295,7 +331,7 @@
       return '<div class="seat' + (i === v.me ? ' me' : '') + '">' +
         (canRemove ? '<button class="x" title="Remove from table" data-remove="' + i + '">✕</button>' : '') +
         '<div class="nm">' + esc(s.name) + tags + '</div>' +
-        '<div class="bk">Chips <b>' + money(s.bank) + '</b> &nbsp;<span class="' + (s.net >= 0 ? 'pos' : 'neg') + '">' + signed(s.net) + '</span></div>' +
+        '<div class="bk"><span class="lb">Chips </span><b>' + money(s.bank) + '</b> &nbsp;<span class="' + (s.net >= 0 ? 'pos' : 'neg') + '">' + signed(s.net) + '</span></div>' +
         '<div class="cards">' + hole + '</div>' +
         '<div class="chips">' + chips.join('') + '</div>' +
         '<div class="status ' + cls + '">' + status + '</div></div>';
@@ -303,6 +339,17 @@
 
     renderControls(v, me, myBest);
     renderFeed(v);
+    // pop new chat from others as a toast on phones when the chat sheet is closed
+    if (app.lastChatLen !== undefined && v.chat.length > app.lastChatLen && phone() && !$('.side').classList.contains('show-chat')) {
+      const c = v.chat[v.chat.length - 1];
+      if (!me || c.who !== me.name) toast(c.who + ': ' + c.text);
+    }
+    if (me && app.lastChatLen !== undefined && v.chat.length > app.lastChatLen) {
+      const c = v.chat[v.chat.length - 1];
+      if (c.who === me.name) app.chatSeen = v.chat.length;
+    }
+    app.lastChatLen = v.chat.length;
+    updateBadge();
   }
 
   function ensureDraft(v, me) {
@@ -318,9 +365,10 @@
     const isHost = app.role === 'host';
     let h = '';
     if (!me) {
-      h = '<h3 class="display">Watching</h3><p class="sub">All seats are full. You will see the action live.</p>';
+      h = '<h3 class="display keep">Watching</h3><p class="sub keep">All seats are full. You will see the action live.</p>';
     } else {
       const bettingOpen = v.phase === 'betting' || v.phase === 'results';
+      h += myHand(v, me, myBest);
       // my result
       if (v.phase === 'results' && me.result) {
         const r = me.result;
@@ -328,16 +376,21 @@
         h += '<div class="sub" style="margin:2px 0 0">' + (me.folded ? 'You folded' : 'Your ' + esc(r.hand) + ' vs dealer ' + esc(v.dealerHand.name)) + '</div>';
         h += '<table class="res">' + r.lines.map(l =>
           '<tr><td>' + l.label + ' ' + money(l.stake) + '</td><td style="color:var(--muted);font-weight:500">' + esc(l.note) + '</td><td class="' + (l.ret - l.stake > 0 ? 'pos' : l.ret - l.stake < 0 ? 'neg' : '') + '">' + signed(l.ret - l.stake) + '</td></tr>').join('') + '</table>';
+        h += '<div class="resmini">' + r.lines.map(l => {
+          const n = l.ret - l.stake;
+          return '<span class="chip ' + (n > 0 ? 'pos' : n < 0 ? 'neg' : '') + '">' + l.label.replace(' Bonus', '') + ' ' + signed(n) + '</span>';
+        }).join('') + '</div>';
       }
       if (bettingOpen) {
         ensureDraft(v, me);
         const d = app.draft;
         const cost = d.ante * 2 + d.trips + d.pairs;
         if (me.ready) {
-          h += '<h3 class="display">You are in</h3><p class="sub">Ante ' + money(d.ante) + ' + Blind ' + money(d.ante) +
+          h += '<h3 class="display keep">You are in</h3><p class="sub keep">Ante ' + money(d.ante) + ' + Blind ' + money(d.ante) +
             (d.trips ? ' + Trips ' + money(d.trips) : '') + (d.pairs ? ' + Pairs ' + money(d.pairs) : '') +
             '. Dealing once everyone is ready' + (isHost ? ', or hit Deal now.' : '.') + '</p>' +
-            '<div class="acts"><button class="btn" data-unready>Change bet</button></div>';
+            '<div class="acts"><button class="btn" data-unready>Change bet</button>' +
+            (isHost ? '<button class="btn gold ph" data-deal>Deal now</button>' : '') + '</div>';
         } else {
           h += '<h3 class="display">' + (v.handNo ? 'Next hand' : 'Place your bets') + '</h3>' +
             '<p class="sub">Tap a spot, then tap chips. Blind always matches the Ante. Trips and Pairs Bonus are optional.</p>' +
@@ -346,7 +399,7 @@
             spot('trips', 'Trips', d.trips, d.trips ? '' : 'Optional') +
             spot('pairs', 'Pairs Bonus', d.pairs, d.pairs ? '' : 'Optional') + '</div>' +
             '<div class="chiprow">' + [5, 10, 25, 100].map(c => '<button class="pchip c' + c + '" data-chip="' + c + '">' + c + '</button>').join('') +
-            '<button class="btn sm ghost" data-rebet>Min bet</button></div>' +
+            '<button class="btn sm ghost" data-rebet title="Back to minimum bet"><span class="desk">Min bet</span><span class="ph">↺ Min</span></button></div>' +
             '<div class="acts"><button class="btn gold" data-ready ' + (cost > me.bank ? 'disabled' : '') + '>Deal me in · ' + money(cost) + '</button>' +
             (me.bank < cost || me.bank < me.next.ante * 6 ? '<button class="btn" data-rebuy>Rebuy ' + money(v.startBank) + '</button>' : '') + '</div>';
         }
@@ -355,7 +408,8 @@
         h += '<div class="mine">' + (myBest ? 'You have <b>' + esc(myBest.name) + '</b>' : preflopHint(me.hole)) + '</div>';
         if (me.acted) {
           h += '<h3 class="display">' + (me.folded ? 'Folded' : me.stake.play ? 'Play bet ' + money(me.stake.play) : 'Checked') + '</h3><p class="sub">' +
-            (me.stake.play ? 'You are locked in. Sit back and watch the cards.' : 'Waiting on the rest of the table.') + '</p>';
+            (me.stake.play ? 'You are locked in. Sit back and watch the cards.' : 'Waiting on the rest of the table.') + '</p>' +
+            (isHost ? '<div class="acts ph"><button class="btn sm" data-force>Hurry up the table</button></div>' : '');
         } else {
           const opts = { preflop: [['check', 'Check', ''], ['bet3', 'Bet 3x', a * 3], ['bet4', 'Bet 4x', a * 4]],
             flop: [['check', 'Check', ''], ['bet2', 'Bet 2x', a * 2]],
@@ -364,7 +418,7 @@
             opts.map(([k, lbl, amt]) => '<button class="btn ' + (amt ? 'gold' : k === 'fold' ? 'red' : '') + '" data-act="' + k + '" ' + (amt && amt > me.bank ? 'disabled' : '') + '>' + lbl + (amt ? ' · ' + money(amt) : '') + '</button>').join('') + '</div>';
         }
       } else {
-        h += '<h3 class="display">Sitting this one out</h3><p class="sub">You will be dealt in next hand.</p>';
+        h += '<h3 class="display keep">Sitting this one out</h3><p class="sub keep">You will be dealt in next hand.</p>';
       }
     }
     if (isHost) {
@@ -376,6 +430,27 @@
         '</div>';
     }
     el.innerHTML = h;
+  }
+  function myHand(v, me, myBest) {
+    const res = v.phase === 'results';
+    const hole = me.hole.length ? me.hole : [null, null];
+    const hi = new Set(myBest ? (res && me.result ? (me.folded ? [] : me.result.best) : myBest.cards) : []);
+    const cards = hole.map((c, j) => cardHTML(c, v.handNo + 'm' + j, { hi: hi.has(c), dim: res && me.folded })).join('');
+    let line1 = '', line2 = '';
+    if (res && me.result) {
+      const n = me.result.net;
+      line1 = me.folded ? 'You folded' : esc(me.result.hand);
+      line2 = '<span class="' + (n > 0 ? 'pos' : n < 0 ? 'neg' : '') + '">' + (n > 0 ? 'Won ' + money(n) : n < 0 ? 'Lost ' + money(-n) : 'Even') + '</span>' +
+        (me.folded || !v.dealerHand ? '' : ' <span class="vs">vs ' + esc(v.dealerHand.name) + '</span>');
+    } else if (me.inHand) {
+      line1 = myBest ? esc(myBest.name) : preflopHint(me.hole).replace('You have ', '');
+      line2 = '<span class="vs">In for ' + money(me.stake.ante * 2 + me.stake.trips + me.stake.pairs + me.stake.play) + '</span>';
+    } else {
+      line1 = esc(me.name);
+    }
+    return '<div class="myhand"><div class="cards">' + cards + '</div><div class="mi">' +
+      '<div class="l1">' + line1 + '</div><div class="l2">' + line2 + '</div>' +
+      '<div class="l3">Chips <b>' + money(me.bank) + '</b> <span class="' + (me.net >= 0 ? 'pos' : 'neg') + '">' + signed(me.net) + '</span></div></div></div>';
   }
   function spot(k, label, val, hint) {
     return '<div class="spot ' + k + (app.sel === k ? ' sel' : '') + '" data-spot="' + k + '">' +
